@@ -1,149 +1,361 @@
 <?php
-session_start();
-require_once 'config/database.php';
+
 
 if (!isset($_SESSION['id_user'])) {
-    header("Location: login.php");
-    exit;
+    exit('Silahkan login terlebih dahulu.');
 }
-// Halaman aktif (hanya huruf, angka, underscore, strip -> cegah path traversal)
-$page = isset($_GET['page']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['page']) : 'dashboard';
-if ($page === '') { $page = 'dashboard'; }
-function aktif($nama, $page) { return $nama === $page ? ' active' : ''; }
-?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>App Penjualan Ritel</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --c1: #4f46e5;
-            --c2: #7c3aed;
-            --c3: #06b6d4;
-        }
-        body {
-            font-family: 'Poppins', system-ui, sans-serif;
-            background: #f4f5fb;
-            padding-top: 72px; padding-bottom: 30px;
-        }
-        /* Navbar */
-        .navbar-app {
-            background: linear-gradient(90deg, var(--c1), var(--c2));
-            box-shadow: 0 6px 20px rgba(79,70,229,.3);
-        }
-        .navbar-app .navbar-brand { letter-spacing: .5px; }
-        .user-pill {
-            background: rgba(255,255,255,.16); border-radius: 50px;
-            padding: 5px 14px 5px 10px; color: #fff;
-        }
-        /* Offcanvas */
-        .offcanvas-header-app {
-            background: linear-gradient(135deg, var(--c1), var(--c2));
-            color: #fff; padding: 22px 20px;
-        }
-        .menu-link {
-            display: flex; align-items: center; gap: 14px;
-            margin: 4px 12px; padding: 12px 16px;
-            border-radius: 12px; color: #374151; text-decoration: none;
-            font-weight: 500; transition: all .2s;
-        }
-        .menu-link i { font-size: 1.15rem; color: var(--c1); transition: color .2s; }
-        .menu-link:hover { background: #eef0ff; color: var(--c1); transform: translateX(4px); }
-        .menu-link.active {
-            background: linear-gradient(135deg, var(--c1), var(--c2)); color: #fff;
-            box-shadow: 0 6px 16px rgba(79,70,229,.35);
-        }
-        .menu-link.active i { color: #fff; }
-        .menu-label { font-size: .7rem; letter-spacing: 1.2px; color: #9ca3af; margin: 14px 24px 4px; font-weight: 600; }
-        /* Komponen umum untuk modul berikutnya */
-        .card { border: 0; border-radius: 16px; box-shadow: 0 4px 18px rgba(30,30,80,.07); }
-        .btn-primary { background: linear-gradient(135deg, var(--c1), var(--c2)); border: 0; }
-        .btn-primary:hover { filter: brightness(1.08); }
-        .table thead th { background: #eef0ff; color: var(--c1); border: 0; }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-dark navbar-app fixed-top">
-        <div class="container-fluid">
-            <button class="navbar-toggler border-0 focus-ring focus-ring-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#menuSamping">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <a class="navbar-brand me-auto ms-2 fw-bold" href="index.php"><i class="bi bi-shop me-1"></i>APP PENJUALAN</a>
-            <div class="user-pill small d-flex align-items-center">
-                <i class="bi bi-person-circle fs-5 me-2"></i>
-                <span class="d-none d-sm-inline fw-semibold"><?= htmlspecialchars($_SESSION['nama']); ?></span>
-                <span class="badge rounded-pill bg-light text-primary ms-2"><?= htmlspecialchars($_SESSION['role']); ?></span>
-            </div>
-        </div>
-    </nav>
 
-    <div class="offcanvas offcanvas-start border-0" tabindex="-1" id="menuSamping" style="max-width: 285px;">
-        <div class="offcanvas-header-app d-flex justify-content-between align-items-start">
-            <div>
-                <h5 class="mb-1 fw-bold"><i class="bi bi-shop me-2"></i>Menu Navigasi</h5>
-                <small class="opacity-75"><?= htmlspecialchars($_SESSION['nama']); ?> &bull; <?= htmlspecialchars($_SESSION['role']); ?></small>
-            </div>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body p-0 d-flex flex-column">
-            <div class="mt-2">
-                <div class="menu-label">UTAMA</div>
-                <a href="index.php" class="menu-link<?= aktif('dashboard', $page); ?>">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
+    echo '<div class="alert alert-danger shadow-sm mt-4">
+        <h5><i class="bi bi-shield-lock-fill me-2"></i> Akses Ditolak!</h5>
+        <p class="mb-0">Hanya Admin yang dapat mengelola data pengguna.</p>
+    </div>';
+    return;
+}
 
-                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin') { ?>
-                <div class="menu-label">ADMINISTRASI</div>
-                <a href="index.php?page=user" class="menu-link<?= aktif('user', $page); ?>">
-                    <i class="bi bi-shield-lock"></i> Data Pengguna
-                </a>
-                <?php } ?>
+$aksi = isset($_GET['aksi']) ? $_GET['aksi'] : 'view';
 
-                <div class="menu-label">DATA &amp; TRANSAKSI</div>
-                <a href="index.php?page=produk" class="menu-link<?= aktif('produk', $page); ?>">
-                    <i class="bi bi-box-seam"></i> Data Produk
-                </a>
-                <a href="index.php?page=pelanggan" class="menu-link<?= aktif('pelanggan', $page); ?>">
-                    <i class="bi bi-people"></i> Data Pelanggan
-                </a>
-                <a href="index.php?page=pesan" class="menu-link<?= aktif('pesan', $page); ?>">
-                    <i class="bi bi-cart"></i> Transaksi Pesanan
-                </a>
-                <a href="index.php?page=faktur" class="menu-link<?= aktif('faktur', $page); ?>">
-                    <i class="bi bi-receipt"></i> Faktur &amp; Kuitansi
-                </a>
-            </div>
-            <div class="mt-auto p-3">
-                <a href="logout.php" class="btn btn-outline-danger w-100 rounded-pill">
-                    <i class="bi bi-box-arrow-right me-2"></i> Keluar (Logout)
-                </a>
-            </div>
-        </div>
-    </div>
+switch ($aksi) {
 
-    <!-- Konten Utama Dinamis -->
-    <div class="container-fluid px-3">
-        <?php
-        if ($page == 'dashboard') {
-            include 'dashboard.php';
+  case 'view':
+    $keyword = isset($_GET['cari']) ? trim($_GET['cari']) : '';
+
+    if ($keyword !== '') {
+            $param = '%' . $keyword . '%';
+            $stmt = $koneksi->prepare(
+                "SELECT id_user, nama, username, role
+                FROM user
+                WHERE nama LIKE ? OR username LIKE ?
+                ORDER BY id_user DESC"
+            );
+            $stmt->bind_param("ss", $param, $param);
+            $stmt->execute();
+            $result = $stmt->get_result();
         } else {
-            $file = "modul/" . $page . "/index.php";
-            if (file_exists($file)) {
-                include $file;
-            } else {
-                echo "<div class='alert alert-warning shadow-sm border-0 rounded-4 mt-3'>
-                        <i class='bi bi-info-circle me-2'></i>Modul <b>" . htmlspecialchars($page) . "</b> belum tersedia. Silakan buat filenya terlebih dahulu.
-                      </div>";
-            }
+            $result = $koneksi->query(
+                "SELECT id_user, nama, username, role
+                FROM user
+                ORDER BY id_user DESC"
+            );
         }
-        ?>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+?>
+
+
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold m-0">Data Pengguna Sistem</h5>
+    <a href="index.php?page=user&aksi=tambah" class="btn btn-primary btn-sm rounded-pill">
+        <i class="bi bi-person-plus-fill me-1"></i> Tambah User
+    </a>
+</div>
+
+<form action="index.php" method="GET" class="mb-4">
+    <input type="hidden" name="page" value="user">
+
+    <div class="input-group shadow-sm">
+        <input type="text" name="cari" class="form-control"
+            placeholder="Cari nama atau username..."
+            value="<?= htmlspecialchars($keyword); ?>">
+
+        <button class="btn btn-primary" type="submit">
+            <i class="bi bi-search"></i> Cari
+        </button>
+    </div>
+</form>
+
+
+<div class="row g-3">
+    <?php if ($result && $result->num_rows > 0) { ?>
+        <?php while ($row = $result->fetch_assoc()) {
+            $warna = ($row['role'] == 'Admin') ? 'bg-danger' : 'bg-primary';
+        ?>
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 border" style="width: 45px;height: 45px;">
+                                <i class="bi bi-person-badge fs-5"></i>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mb-0"><?= htmlspecialchars($row['nama']); ?></h6>
+                        <span class="badge <?= $warna; ?>"><?= htmlspecialchars($row['role']); ?></span>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-at me-1"></i><?= htmlspecialchars($row['username']); ?>
+                    </p>
+
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-warning btn-sm rounded-pill w-50" href="index.php?page=user&aksi=edit&id=<?= (int)$row['id_user']; ?>">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+
+                        <a class="btn btn-outline-danger btn-sm rounded-pill w-50" href="index.php?page=user&aksi=hapus&id=<?= (int)$row['id_user']; ?>" onclick="return confirm('Yakin ingin menghapus pengguna ini?');">
+                            <i class="bi bi-trash"></i> Hapus
+                        </a>
+                    </div>
+                </div>
+            </div>
+        <?php } ?>
+    <?php } else { ?>
+        <div class="col-12">
+            <div class="alert alert-light border text-center">
+                Data pengguna tidak ditemukan.
+            </div>
+        </div>
+    <?php } ?>
+</div>
+
+<?php
+if (isset($stmt)) {
+    $stmt->close();
+}
+break;
+
+    case 'tambah':
+    $pesan = '';
+    if (isset($_POST['simpan'])) {
+        $nama = trim($_POST['nama']);
+        $username = trim($_POST['username']);
+        $password_input = $_POST['password'];
+        $role = $_POST['role'];
+
+        // Pastikan role sesuai pilihan yang diizinkan database.
+        if (!in_array($role, ['Admin', 'Kasir'], true)) {
+            $pesan = 'Role yang dipilih tidak valid.';
+        } elseif ($nama === '' || $username === '' || $password_input === '') {
+            $pesan = 'Semua kolom wajib diisi.';
+        } else {
+            // Periksa apakah username sudah digunakan.
+            $cek = $koneksi->prepare("SELECT id_user FROM user WHERE username = ?");
+            $cek->bind_param("s", $username);
+            $cek->execute();
+            $sudah_ada = $cek->get_result()->num_rows > 0;
+            $cek->close();
+
+            if ($sudah_ada) {
+                $pesan = 'Username sudah digunakan. Silakan pilih username lain.';
+            } else {
+                // Mengikuti skema autentikasi Modul 02.
+                $password = md5($password_input);
+                $stmt = $koneksi->prepare(
+                    "INSERT INTO user (nama, username, password, role) VALUES (?, ?, ?, ?)"
+                );
+                $stmt->bind_param("ssss", $nama, $username, $password, $role);
+
+                if ($stmt->execute()) {
+                    $stmt->close();
+                    echo "<script>
+                        alert('Pengguna berhasil ditambahkan!');
+                        window.location='index.php?page=user';
+                    </script>";
+                    exit;
+                } else {
+                    $pesan = 'Gagal menyimpan data pengguna.';
+                }
+            }
+            if (isset($stmt)) $stmt->close();
+        }
+    }
+
+?>
+<h5 class="fw-bold mb-3">Tambah Pengguna Baru</h5>
+
+<?php if ($pesan !== '') { ?>
+    <div class="alert alert-warning"><?= htmlspecialchars($pesan); ?></div>
+<?php } ?>
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form action="index.php?page=user&aksi=tambah" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Nama Lengkap</label>
+                <input type="text" name="nama" class="form-control" maxlength="100" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Username</label>
+                <input type="text" name="username" class="form-control" maxlength="50" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Password</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold">Hak Akses</label>
+                <select name="role" class="form-select" required>
+                    <option value="">-- Pilih Role --</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Kasir">Kasir</option>
+                </select>
+            </div>
+            <button type="submit" name="simpan" class="btn btn-primary w-100 mb-2">Simpan Pengguna</button>
+            <a href="index.php?page=user" class="btn btn-light w-100">Batal</a>
+        </form>
+    </div>
+</div>
+<?php
+    break;
+
+    
+case 'edit':
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id < 1) {
+        echo '<div class="alert alert-warning">ID pengguna tidak valid.</div>';
+        break;
+    }
+
+    $stmt_get = $koneksi->prepare("SELECT id_user, nama, username, role FROM user WHERE id_user = ?");
+    $stmt_get->bind_param("i", $id);
+    $stmt_get->execute();
+    $data = $stmt_get->get_result()->fetch_assoc();
+    $stmt_get->close();
+
+    if (!$data) {
+        echo '<div class="alert alert-warning">Data pengguna tidak ditemukan.</div>';
+        break;
+    }
+
+        $pesan = '';
+
+if (isset($_POST['update'])) {
+    $nama = trim($_POST['nama']);
+    $username = trim($_POST['username']);
+    $password_input = trim($_POST['password']);
+    $role = $_POST['role'];
+
+    if (!in_array($role, ['Admin', 'Kasir'], true)) {
+        $pesan = 'Role yang dipilih tidak valid.';
+    } elseif ($nama === '' || $username === '') {
+        $pesan = 'Nama dan username wajib diisi.';
+    } else {
+        // Username boleh tetap sama, tetapi tidak boleh dipakai oleh pengguna lain.
+        $cek = $koneksi->prepare("SELECT id_user FROM user WHERE username = ? AND id_user <> ?");
+        $cek->bind_param("si", $username, $id);
+        $cek->execute();
+        $username_dipakai = $cek->get_result()->num_rows > 0;
+        $cek->close();
+
+        if ($username_dipakai) {
+            $pesan = 'Username sudah digunakan oleh pengguna lain.';
+        } else {
+            if ($password_input !== '') {
+                $password = md5($password_input);
+                $stmt = $koneksi->prepare(
+                    "UPDATE user SET nama = ?, username = ?, password = ?, role = ? WHERE id_user = ?"
+                );
+                $stmt->bind_param("ssssi", $nama, $username, $password, $role, $id);
+            } else {
+                // Password kosong: jangan ubah kolom password.
+                $stmt = $koneksi->prepare(
+                    "UPDATE user SET nama = ?, username = ?, role = ? WHERE id_user = ?"
+                );
+                $stmt->bind_param("sssi", $nama, $username, $role, $id);
+            }
+
+            if ($stmt->execute()) {
+                $stmt->close();
+                echo "<script>
+                    alert('Data pengguna berhasil diperbarui!');
+                    window.location='index.php?page=user';
+                </script>";
+                exit;
+            } else {
+                $pesan = 'Gagal memperbarui data pengguna.';
+            }
+
+            if (isset($stmt)) $stmt->close();
+        }
+    }
+
+    // Isi form dengan data yang baru dikirim jika validasi gagal.
+    $data['nama'] = $nama;
+    $data['username'] = $username;
+    $data['role'] = $role;
+}
+?>
+
+    <h5 class="fw-bold mb-3">Edit Pengguna</h5>
+<?php if ($pesan !== '') { ?>
+    <div class="alert alert-warning"><?php echo htmlspecialchars($pesan); ?></div>
+<?php } ?>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form action="index.php?page=user&aksi=edit&id=<?php echo (int)$id; ?>" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Nama Lengkap</label>
+                <input type="text" name="nama" class="form-control" value="<?php echo htmlspecialchars($data['nama']); ?>" maxlength="100" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Username</label>
+                <input type="text" name="username" class="form-control" value="<?php echo htmlspecialchars($data['username']); ?>" maxlength="50" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Password Baru</label>
+                <input type="password" name="password" class="form-control" placeholder="Kosongkan jika tidak ingin mengubah password">
+                <div class="form-text">Password lama tetap digunakan jika kolom ini kosong.</div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Hak Akses</label>
+                <select name="role" class="form-select" required>
+                    <option value="Admin" <?php echo $data['role'] === 'Admin' ? 'selected' : ''; ?>>Admin</option>
+                    <option value="Kasir" <?php echo $data['role'] === 'Kasir' ? 'selected' : ''; ?>>Kasir</option>
+                </select>
+            </div>
+
+            <button type="submit" name="update" class="btn btn-success w-100 mb-2">Update Pengguna</button>
+            <a href="index.php?page=user" class="btn btn-light w-100">Batal</a>
+        </form>
+    </div>
+</div>
+<?php
+    break;
+
+
+
+case 'hapus':
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id < 1) {
+        echo "<script>
+            alert('ID pengguna tidak valid.');
+            window.location='index.php?page=user';
+        </script>";
+        exit;
+    }
+
+    // Self-deletion guard: Admin tidak boleh menghapus akun sendiri.
+    if ($id == $_SESSION['id_user']) {
+        echo "<script>
+            alert('Gagal! Anda tidak dapat menghapus akun yang sedang digunakan.');
+            window.location='index.php?page=user';
+        </script>";
+        exit;
+    }
+
+    $stmt = $koneksi->prepare("DELETE FROM user WHERE id_user = ?");
+    $stmt->bind_param("i", $id);
+
+    if ($stmt->execute() && $stmt->affected_rows > 0) {
+        $pesan_hapus = 'Pengguna berhasil dihapus.';
+    } else {
+        $pesan_hapus = 'Pengguna gagal dihapus atau data tidak ditemukan.';
+    }
+
+    $stmt->close();
+
+    echo "<script>
+        alert(" . json_encode($pesan_hapus) . ");
+        window.location='index.php?page=user';
+    </script>";
+    exit;
+
+default:
+    echo '<div class="alert alert-warning">
+        Aksi tidak dikenali. Silakan kembali ke daftar pengguna.
+    </div>';
+    break;
+}
